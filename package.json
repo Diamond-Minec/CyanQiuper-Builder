@@ -1,0 +1,21 @@
+{
+  "name": "cyanqiuper-local",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CyanQiuper 本地版：Minecraft 基岩版结构导入（WebSocket）+ 网页管理面板 + 网易版通道",
+  "type": "module",
+  "scripts": {
+    "ws": "tsx main.ts",
+    "admin": "tsx admin-server.ts",
+    "netease": "tsx netease-service.ts",
+    "start": "tsx admin-server.ts",
+    "set-password": "node tools/set-password.mjs"
+  },
+  "dependencies": {
+    "@pureeval/voxel-geometry": "1.2.10",
+    "mcpews": "^4.0.0",
+    "tsx": "^4.20.6",
+    "ws": "^8.18.0"
+  },
+  "license": "MIT"
+}

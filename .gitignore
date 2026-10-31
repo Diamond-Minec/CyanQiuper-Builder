@@ -1,0 +1,11 @@
+node_modules/
+logs/
+admin/auth.json
+netease-bot/
+nbot/
+*.pem
+key.json
+mc.cfg
+bot.sock
+*.log
+.env
