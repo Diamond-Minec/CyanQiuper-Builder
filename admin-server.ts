@@ -471,7 +471,7 @@ const server = createServer(async (req, res) => {
     if (auth) {
       const authed = isValidSession(readCookie(req, "cq_session"));
       // 静态资源（logo / 图标）与登录页本身无需登录，否则登录页也加载不出图标
-      const isPublic = p.startsWith("/assets/") || p === "/favicon.ico";
+      const isPublic = p.startsWith("/assets/") || p === "/polish.css" || p === "/snowluma.css" || p === "/snowluma.js" || p === "/pixelart.js" || p === "/astrbot.css" || p === "/pixeltext.js" || p === "/favicon.ico";
       if (isPublic) {
         // 落到后面的静态资源处理
       } else if (req.method === "POST" && p === "/api/login") {
@@ -534,6 +534,30 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && p === "/favicon.ico") {
       res.writeHead(204);
       return res.end();
+    }
+    if (req.method === "GET" && p === "/polish.css") {
+      try {
+        const css = await fs.promises.readFile(path.join(ADMIN_DIR, "polish.css"));
+        res.writeHead(200, { "content-type": "text/css; charset=utf-8", "cache-control": "no-store" });
+        return res.end(css);
+      } catch {
+        res.writeHead(404);
+        return res.end("missing admin/polish.css");
+      }
+    }
+    if (req.method === "GET" && (p === "/snowluma.css" || p === "/snowluma.js" || p === "/pixelart.js" || p === "/astrbot.css" || p === "/pixeltext.js")) {
+      try {
+        const name = p.slice(1);
+        const buf = await fs.promises.readFile(path.join(ADMIN_DIR, name));
+        res.writeHead(200, {
+          "content-type": name.endsWith(".css") ? "text/css; charset=utf-8" : "application/javascript; charset=utf-8",
+          "cache-control": "no-store",
+        });
+        return res.end(buf);
+      } catch {
+        res.writeHead(404);
+        return res.end("missing " + p);
+      }
     }
     if (req.method === "GET" && p.startsWith("/assets/")) {
       const rel = path.normalize(p.replace(/^\/+/, "")).replace(/^([.][.][\\/])+/, "");
@@ -605,6 +629,18 @@ const server = createServer(async (req, res) => {
         body: JSON.stringify({ code }),
       });
       if (!r) return sendJson(res, 200, { ok: false, error: "WS 服务未运行，无法执行" });
+      return sendJson(res, 200, r);
+    }
+
+    // ---- 像素画：像素矩阵 → 结构 ----
+    if (req.method === "POST" && p === "/api/pixelart/prepare") {
+      const body = await readJson(req, 64 << 20);
+      const r = await controlFetch("/pixelart/prepare", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r) return sendJson(res, 200, { ok: false, error: "WS 服务未运行，无法生成像素画" });
       return sendJson(res, 200, r);
     }
 

@@ -14,6 +14,7 @@ import * as path from "node:path";
 import { NeteaseBridge, BridgeEvent } from "./src/netease-bridge";
 import { parseMcStructure, structureCommands, ParsedStructure } from "./src/structure";
 import { parseStructureFile } from "./src/formats";
+import { describeBaseline, checkBotProtocol, effectiveProtocolVersion, gameVersionFor, NETEASE_PROTOCOL } from "./src/netease-protocol";
 
 const APP_NAME = "CyanQiuper-NetEase";
 const PORT = Number(process.env.FB_NETEASE_PORT || 11454);
@@ -362,9 +363,18 @@ const server = createServer(async (req, res) => {
       const pos = await bridge.getPosition().catch(() => null);
       const identity = await bridge.identity().catch(() => null);
       const players = await bridge.players().catch(() => null);
+      const bp = bridge.protocol;
+      const protocolCheck = checkBotProtocol(bp.version, bp.gameVersion);
       return json(res, 200, {
         ok: true,
         app: APP_NAME,
+        protocol: {
+          ...protocolCheck,
+          source: NETEASE_PROTOCOL.source,
+          target: effectiveProtocolVersion(),
+          targetGameVersion: gameVersionFor(effectiveProtocolVersion()),
+          minSupported: NETEASE_PROTOCOL.minSupportedProtocol,
+        },
         bridge: { connected: bridge.isConnected, socket: SOCKET_PATH, error: bridgeError },
         bot: { identity, position: pos, players },
         pending: pending ? { name: pending.st.name, size: pending.st.size, total: pending.st.total, uploadedAt: pending.uploadedAt } : null,
@@ -459,6 +469,7 @@ function boot() {
     logError("未设置 FB_NETEASE_SOCKET，无法连接机器人事件桥");
   } else {
     log(`${APP_NAME} 启动：事件桥 ${SOCKET_PATH}`);
+  log(describeBaseline());
     bridge.subscribeEvents("cyanqiuper");
     bridge.connect();
   }

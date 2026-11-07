@@ -1,21 +1,30 @@
 {
-  "name": "cyanqiuper-local",
+  "name": "cyanqiuper",
   "version": "1.0.0",
-  "private": true,
-  "description": "CyanQiuper 本地版：Minecraft 基岩版结构导入（WebSocket）+ 网页管理面板 + 网易版通道",
-  "type": "module",
+  "description": "CyanQiuper - Minecraft Bedrock Structure Generator based on WebSocket (with web admin panel)",
+  "main": "Main.js",
   "scripts": {
+    "start": "bun run main.ts",
+    "start:node": "tsx main.ts",
     "ws": "tsx main.ts",
     "admin": "tsx admin-server.ts",
-    "netease": "tsx netease-service.ts",
-    "start": "tsx admin-server.ts",
     "set-password": "node tools/set-password.mjs"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CAIMEOX/FastBuilder.git"
+  },
+  "author": "CAIMEO",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/CAIMEOX/FastBuilder/issues"
+  },
+  "homepage": "https://github.com/CAIMEOX/FastBuilder#readme",
   "dependencies": {
     "@pureeval/voxel-geometry": "1.2.10",
-    "mcpews": "^4.0.0",
-    "tsx": "^4.20.6",
-    "ws": "^8.18.0"
+    "mcpews": "^4.0.0"
   },
-  "license": "MIT"
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
 }

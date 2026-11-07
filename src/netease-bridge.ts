@@ -10,6 +10,7 @@
  * 只依赖 Node 内置模块。
  */
 import * as net from "node:net";
+import { NETEASE_PROTOCOL, effectiveProtocolVersion, gameVersionFor } from "./netease-protocol";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -46,6 +47,9 @@ export class NeteaseBridge {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private subscribed = new Set<string>();
   private lastError = "";
+  /** 机器人上报的协议版本 / 游戏版本（用于兼容检查） */
+  private botProtocol: number | null = null;
+  private botGameVersion: string | null = null;
 
   constructor(opts: NeteaseBridgeOptions) {
     this.opts = opts;
@@ -57,6 +61,15 @@ export class NeteaseBridge {
 
   get error(): string {
     return this.lastError;
+  }
+
+  /** 机器人上报的协议信息 */
+  get protocol(): { version: number | null; gameVersion: string | null; expected: number } {
+    return {
+      version: this.botProtocol,
+      gameVersion: this.botGameVersion,
+      expected: effectiveProtocolVersion(),
+    };
   }
 
   connect(): void {
@@ -116,8 +129,20 @@ export class NeteaseBridge {
       return;
     }
     if (msg.type === "hello" || msg.type === "auth") {
+      if (typeof msg.protocolVersion === "number" || typeof msg.protocol === "number") {
+        this.botProtocol = Number(msg.protocolVersion ?? msg.protocol);
+        this.botGameVersion = typeof msg.gameVersion === "string" ? msg.gameVersion : gameVersionFor(this.botProtocol);
+        this.log(`机器人协议：${this.botProtocol}（MCBE ${this.botGameVersion}）`);
+      }
       if (msg.type === "auth") {
-        this.send({ type: "auth", token: this.opts.token ?? "" });
+        this.send({
+        type: "auth",
+        token: this.opts.token ?? "",
+        client: "CyanQiuper",
+        // 协议基线（参考 NTvector：898 / 1.21.130）；老版本机器人可忽略这两个字段
+        protocolVersion: effectiveProtocolVersion(),
+        gameVersion: gameVersionFor(effectiveProtocolVersion()),
+      });
       }
       // 已订阅的事件重新订阅
       for (const id of this.subscribed) {
@@ -127,6 +152,11 @@ export class NeteaseBridge {
     }
     if (msg.type === "auth_ok") {
       this.authed = true;
+      if (typeof msg.protocolVersion === "number" || typeof msg.protocol === "number") {
+        this.botProtocol = Number(msg.protocolVersion ?? msg.protocol);
+        this.botGameVersion = typeof msg.gameVersion === "string" ? msg.gameVersion : gameVersionFor(this.botProtocol);
+        this.log(`机器人协议：${this.botProtocol}（MCBE ${this.botGameVersion}）`);
+      }
       this.log("事件桥鉴权通过");
       for (const id of this.subscribed) {
         this.send({ type: "subscribe", events: ["*"], id });

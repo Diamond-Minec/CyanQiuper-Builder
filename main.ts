@@ -109,6 +109,13 @@ const MAX_RETRY_ROUNDS = 3;
 
 /** ===== 顶部 HUD：仿 PasteCraft-Builder 的多行 actionbar ===== */
 const HUD_BAR = 16;
+
+/** ===== 导入速度/稳定性参数（可用环境变量覆盖） ===== */
+const SEND_WINDOW_MAX = Math.max(4, Number(process.env.FB_SEND_WINDOW ?? 48));
+const SEND_WINDOW_MIN = Math.max(1, Number(process.env.FB_SEND_WINDOW_MIN ?? 8));
+const SEND_TICK_MS = Math.max(4, Number(process.env.FB_SEND_TICK ?? 12));
+const SEND_SAMPLE_MS = Math.max(100, Number(process.env.FB_SEND_SAMPLE ?? 400));
+const SEND_FAIL_RATIO = Math.min(1, Math.max(0.01, Number(process.env.FB_SEND_FAIL_RATIO ?? 0.05)));
 type HudState = {
   active: boolean;
   name: string;
@@ -349,7 +356,13 @@ function startStructureBuild(offsetY: number) {
   const sendBatch = (list: StructureCmd[], onDone: () => void, isRetry: boolean) => {
     let idx = 0;
     let lastBar = 0;
-    const step = () => {
+    // 初速：首轮全速；补建轮从半速开始，避免再次过载
+    let window = isRetry ? Math.max(SEND_WINDOW_MIN, Math.floor(SEND_WINDOW_MAX / 3)) : SEND_WINDOW_MAX;
+    let sentSinceSample = 0;
+    let failedSinceSample = 0;
+    let lastSample = Date.now();
+
+    const pump = () => {
       buildTimer = null;
       if (!build || build.cancelled) return;
       const sess = activeSession();
@@ -361,11 +374,13 @@ function startStructureBuild(offsetY: number) {
         logError(`结构「${st.name}」导入中断：游戏连接已断开`);
         return;
       }
-      let n = 0;
-      while (idx < list.length && n < 28) {
+
+      // 以「在途命令数」为闸门：窗口没满就继续发，把管道喂饱
+      while (idx < list.length && inFlight < window) {
         const c = list[idx++];
         inFlight++;
         build.sent++;
+        sentSinceSample++;
         if (isRetry) {
           build.retried++;
         } else {
@@ -377,28 +392,48 @@ function startStructureBuild(offsetY: number) {
             inFlight = Math.max(0, inFlight - 1);
             if (!build) return;
             if (body && body.statusCode === 0) build.confirmed++;
-            else failedQueue.push(c);
+            else {
+              failedSinceSample++;
+              failedQueue.push(c);
+            }
           });
         } catch {
           inFlight = Math.max(0, inFlight - 1);
+          failedSinceSample++;
           failedQueue.push(c);
         }
-        n++;
       }
-      if (Date.now() - lastBar > 250 || idx >= list.length) {
-        lastBar = Date.now();
+
+      const now = Date.now();
+      // 每 400ms 采样一次：失败率高就收窗口，稳定就逐步放大
+      if (now - lastSample >= SEND_SAMPLE_MS) {
+        const ratio = sentSinceSample > 0 ? failedSinceSample / sentSinceSample : 0;
+        if (ratio > SEND_FAIL_RATIO) {
+          window = Math.max(SEND_WINDOW_MIN, Math.floor(window * 0.7));
+          logError(`发送失败率 ${(ratio * 100).toFixed(1)}%，降速：窗口 ${window}`);
+        } else if (window < SEND_WINDOW_MAX && inFlight < window * 0.6) {
+          window = Math.min(SEND_WINDOW_MAX, window + 4);
+        }
+        sentSinceSample = 0;
+        failedSinceSample = 0;
+        lastSample = now;
+      }
+
+      if (now - lastBar > 250 || idx >= list.length) {
+        lastBar = now;
         if (build) {
           const suffix = isRetry ? ` §c补建第 ${build.retryRound} 轮` : "";
           actionbarProgress(build.name, build.placed, build.total, suffix);
         }
       }
+
       if (idx >= list.length) {
         waitIdle(onDone);
         return;
       }
-      buildTimer = setTimeout(step, 90);
+      buildTimer = setTimeout(pump, SEND_TICK_MS);
     };
-    step();
+    pump();
   };
 
   /** 第 1 步结束 → 强制进入第 2、3 步（校验 + 补建） */
@@ -475,10 +510,11 @@ function startStructureBuild(offsetY: number) {
       `补建第 ${build.retryRound} 轮：${retryList.length} 条命令（${retryList.reduce((a, c) => a + c.count, 0)} 方块）`
     );
     s.chat(`§e有 ${retryList.length} 条命令未成功，开始第 ${build.retryRound} 轮补建…`);
+    const backoff = Math.min(2000, 400 * build.retryRound);
     setTimeout(() => {
       if (!build || build.cancelled) return;
       sendBatch(retryList, onRoundDone, true);
-    }, 400);
+    }, backoff);
   };
 
   // 第一轮：全部命令
@@ -584,7 +620,7 @@ async function verifyStructure(deep = false, opts: { pipeline?: boolean; cap?: n
   const aborted = () => pipeline && (!build || build.cancelled);
 
   // 第 2 步：回读抽查（testforblock）
-  const batchSize = 80;
+  const batchSize = Math.max(10, Number(process.env.FB_VERIFY_BATCH ?? 100));
   for (let i = 0; i < points.length; i += batchSize) {
     if (aborted()) { buildVerify.running = false; return { ok: false, error: "已取消" }; }
     const sess = activeSession();
@@ -1214,6 +1250,59 @@ const control = createServer(async (req, res) => {
     }
 
     // ---- 结构导入：上传解析 ----
+    // ---- 像素画：像素矩阵 → 结构（由 /structure/build 直接导入） ----
+    if (req.method === "POST" && pathname === "/pixelart/prepare") {
+      const body = await readJson(req, 64 << 20);
+      const name = String(body.name ?? "pixelart").slice(0, 80) || "pixelart";
+      const rows = Array.isArray(body.rows) ? body.rows : [];
+      if (!rows.length) return json(res, 400, { ok: false, error: "缺少像素数据" });
+      const h = rows.length;
+      const w = rows.reduce((m: number, r: any) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
+      if (!w || !h) return json(res, 400, { ok: false, error: "像素数据为空" });
+      if (w > 512 || h > 512) return json(res, 400, { ok: false, error: "像素画尺寸上限 512×512" });
+      const blocks: any[] = [];
+      const matSet = new Set<string>();
+      for (let z = 0; z < h; z++) {
+        const row: any[] = Array.isArray(rows[z]) ? rows[z] : [];
+        for (let x = 0; x < row.length; x++) {
+          const b = row[x];
+          if (!b) continue;
+          const nameB = String(b);
+          blocks.push({ x, y: h - 1 - z, z: 0, block: nameB });
+          matSet.add(nameB);
+        }
+      }
+      if (!blocks.length) return json(res, 400, { ok: false, error: "没有可放置的方块" });
+      if (blocks.length > STRUCTURE_LIMIT_BLOCKS) {
+        return json(res, 200, {
+          ok: false,
+          error: `像素画太大：${blocks.length} 方块（上限 ${STRUCTURE_LIMIT_BLOCKS}），请减小宽度`,
+        });
+      }
+      pendingStructure = {
+        name,
+        size: { x: w, y: h, z: 1 },
+        blocks,
+        total: blocks.length,
+        paletteSize: matSet.size,
+        skippedAir: w * h - blocks.length,
+        materials: [...matSet],
+      } as any;
+      pendingFormat = ".pixelart";
+      pendingUploadedAt = Date.now();
+      log(`像素画已生成「${name}」：${w}×${h}，${blocks.length} 方块，${matSet.size} 种`);
+      return json(res, 200, {
+        ok: true,
+        structure: {
+          name,
+          size: { x: w, y: h, z: 1 },
+          total: blocks.length,
+          paletteSize: matSet.size,
+          materials: [...matSet],
+        },
+      });
+    }
+
     if (req.method === "POST" && pathname === "/structure/prepare") {
       const body = await readJson(req, 64 << 20);
       const rawFile = String(body.name ?? "structure");

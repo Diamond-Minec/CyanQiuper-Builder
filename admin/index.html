@@ -1,256 +1,64 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>CyanQiuper 后台管理</title>
-<link rel="icon" type="image/png" href="/assets/favicon.png" />
-<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
-<style>
-  :root{
-    --radius:10px;
-    --mono: ui-monospace, SFMono-Regular, Consolas, "Cascadia Mono", "Courier New", monospace;
-    --accent:#4898A8; --accent-2:#3D8B9B;
-  }
-  html[data-theme="dark"]{
-    --bg:#070707; --panel:#0d0d0d; --panel-2:#121212; --panel-3:#171717;
-    --line:#232323; --line-2:#2e2e2e; --fg:#f2f2f2; --dim:#a8a8a8; --faint:#5c5c5c;
-    --dot-on:#ffffff; --dot-shadow:0 0 8px rgba(255,255,255,.8);
-    --log-bg:#060606; --hover:#0f0f0f; --err-bg:#141414; --code-bg:#080808;
-    --btn-fg:#000; --btn-bg:#f2f2f2;
-  }
-  html[data-theme="light"]{
-    --bg:#f2f4f5; --panel:#ffffff; --panel-2:#f7f8f9; --panel-3:#eef1f3;
-    --line:#e2e6e9; --line-2:#d2d8dd; --fg:#15191c; --dim:#4c545b; --faint:#8b939a;
-    --dot-on:var(--accent); --dot-shadow:0 0 8px rgba(72,152,168,.6);
-    --log-bg:#fbfcfc; --hover:#f1f4f5; --err-bg:#f2f6f7; --code-bg:#fbfcfc;
-    --btn-fg:#fff; --btn-bg:var(--accent);
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0; background:var(--bg); color:var(--fg);
-    font:14px/1.55 system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
-    -webkit-font-smoothing:antialiased;
-    display:flex; flex-direction:column; overflow:hidden;
-  }
-  button,input,select{font:inherit;color:inherit}
-  ::selection{background:var(--accent); color:#fff}
-
-  /* ---------- 顶部 ---------- */
-  header{
-    flex:0 0 auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
-    padding:12px 20px; border-bottom:1px solid var(--line); background:var(--panel);
-  }
-  .brand{display:flex; align-items:center; gap:10px; min-width:0}
-  .brand img{height:30px; width:30px; display:block}
-  .brand .name{font-size:15px; font-weight:700; letter-spacing:.02em}
-  .brand .sub{color:var(--faint); font-size:12px; letter-spacing:.06em; padding-left:2px}
-  .pill{
-    display:inline-flex; align-items:center; gap:8px; padding:5px 12px;
-    border:1px solid var(--line-2); border-radius:999px; font-size:12px; color:var(--dim);
-    background:var(--panel-2); white-space:nowrap;
-  }
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
-  .dot.on{background:var(--dot-on); box-shadow:var(--dot-shadow)}
-  .spacer{flex:1}
-  .clock{font-family:var(--mono); font-size:12px; color:var(--faint); white-space:nowrap}
-  .clock b{color:var(--fg); font-weight:600}
-  .hint{
-    font-family:var(--mono); font-size:12px; color:var(--dim);
-    border:1px dashed var(--line-2); border-radius:8px; padding:5px 10px; white-space:nowrap;
-  }
-  .hint b{color:var(--fg); font-weight:600}
-
-  /* ---------- 按钮 ---------- */
-  .btn{
-    background:var(--panel-2); border:1px solid var(--line-2); border-radius:8px;
-    padding:7px 12px; font-size:12.5px; color:var(--fg); cursor:pointer;
-    transition:background .12s, border-color .12s, transform .06s; white-space:nowrap;
-  }
-  .btn:hover{background:var(--panel-3); border-color:var(--faint)}
-  .btn:active{transform:translateY(1px)}
-  .btn:disabled{opacity:.4; cursor:not-allowed}
-  .btn.primary{background:var(--btn-bg); color:var(--btn-fg); border-color:var(--btn-bg); font-weight:600}
-  .btn.ghost{background:transparent}
-  .btn.small{padding:4px 9px; font-size:11.5px}
-  .btn.accent{background:var(--accent); color:#fff; border-color:var(--accent)}
-  .btn.accent:hover{background:var(--accent-2); border-color:var(--accent-2)}
-
-  /* ---------- 主布局 ---------- */
-  main{
-    flex:1; min-height:0; display:grid; gap:14px; padding:14px 20px 18px;
-    grid-template-columns: minmax(360px, .86fr) minmax(420px, 1.14fr);
-  }
-  .col{min-height:0; display:flex; flex-direction:column; gap:14px; overflow:auto; padding-right:2px}
-  .col::-webkit-scrollbar{width:8px}
-  .col::-webkit-scrollbar-thumb{background:var(--line-2); border-radius:8px}
-
-  .panel{
-    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
-    padding:14px 16px; flex:0 0 auto;
-  }
-  .panel h2{
-    margin:0 0 12px; font-size:11.5px; font-weight:600; letter-spacing:.14em;
-    color:var(--faint); display:flex; align-items:center; gap:8px;
-  }
-  .panel h2::after{content:""; flex:1; height:1px; background:var(--line)}
-
-  /* ---------- 键值表 ---------- */
-  .kv{display:grid; grid-template-columns: 92px 1fr; gap:9px 12px; font-size:13px}
-  .kv dt{color:var(--faint); font-size:12.5px}
-  .kv dd{margin:0; color:var(--fg); font-family:var(--mono); font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .kv dd.off{color:var(--faint)}
-
-  /* ---------- 玩家 ---------- */
-  .player{display:grid; grid-template-columns: repeat(3, 1fr); gap:10px}
-  .player .box{border:1px solid var(--line); border-radius:8px; background:var(--panel-2); padding:9px 11px; min-width:0}
-  .player .k{font-size:11px; color:var(--faint); margin-bottom:3px}
-  .player .v{font-family:var(--mono); font-size:13px; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-
-  /* ---------- 统计 ---------- */
-  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px}
-  .stat{border:1px solid var(--line); border-radius:8px; background:var(--panel-2); padding:10px 12px}
-  .stat .n{font-family:var(--mono); font-size:19px; line-height:1.1}
-  .stat .k{font-size:11px; color:var(--faint); margin-top:4px; letter-spacing:.04em}
-
-  /* ---------- 快捷 ---------- */
-  .quick{display:flex; flex-wrap:wrap; gap:8px}
-  .quick .btn{font-family:var(--mono); font-size:12px}
-  .blocks{display:flex; flex-wrap:wrap; gap:8px}
-  .block-chip{
-    display:inline-flex; align-items:center; gap:7px; padding:5px 10px; border-radius:8px;
-    border:1px solid var(--line-2); background:var(--panel-2); cursor:pointer; font-size:12px;
-    font-family:var(--mono); color:var(--dim);
-  }
-  .block-chip:hover{border-color:var(--accent); color:var(--fg)}
-  .swatch{width:12px; height:12px; border-radius:3px; border:1px solid var(--line-2)}
-
-  /* ---------- 最近命令 ---------- */
-  .recent{display:flex; flex-direction:column; gap:6px}
-  .recent .row{
-    display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px;
-    padding:6px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel-2);
-    cursor:pointer; color:var(--dim);
-  }
-  .recent .row:hover{border-color:var(--accent); color:var(--fg)}
-  .recent .empty{color:var(--faint); font-size:12px}
-
-  /* ---------- 控制台 ---------- */
-  .console-out{
-    font-family:var(--mono); font-size:12.5px; background:var(--code-bg);
-    border:1px solid var(--line); border-radius:8px; padding:10px 12px;
-    height:170px; overflow:auto; margin-bottom:10px;
-  }
-  .console-out::-webkit-scrollbar{width:8px}
-  .console-out::-webkit-scrollbar-thumb{background:var(--line-2); border-radius:8px}
-  .entry{margin-bottom:8px; white-space:pre-wrap; word-break:break-word}
-  .entry .cmd{color:var(--dim)}
-  .entry .cmd::before{content:"› "; color:var(--accent)}
-  .entry .res{color:var(--fg); font-weight:600}
-  .entry .ok{color:var(--accent)}
-  .entry .err{color:#fff; background:#b23b3b; padding:2px 8px; border-radius:6px; display:inline-block}
-  html[data-theme="light"] .entry .err{color:#fff; background:#c0392b}
-  .cmdbar{display:flex; gap:8px}
-  .cmdbar input{
-    flex:1; background:var(--code-bg); border:1px solid var(--line-2); border-radius:8px;
-    padding:9px 12px; font-family:var(--mono); font-size:12.5px; outline:none;
-  }
-  .cmdbar input:focus{border-color:var(--accent)}
-
-  /* ---------- 设置 ---------- */
-  .setting-row{display:flex; gap:8px; align-items:center}
-  .setting-row input{
-    flex:1; background:var(--code-bg); border:1px solid var(--line-2); border-radius:8px;
-    padding:8px 11px; font-family:var(--mono); font-size:12.5px; outline:none;
-  }
-  .setting-row input:focus{border-color:var(--accent)}
-
-  /* ---------- 游戏信息原始 JSON ---------- */
-  .raw-info{
-    margin:8px 0 0; padding:10px 12px; max-height:220px; overflow:auto;
-    background:var(--code-bg); border:1px solid var(--line); border-radius:8px;
-    font-family:var(--mono); font-size:11.5px; color:var(--dim); white-space:pre-wrap; word-break:break-word;
-  }
-  .raw-info::-webkit-scrollbar{width:8px}
-  .raw-info::-webkit-scrollbar-thumb{background:var(--line-2); border-radius:8px}
-
-  /* ---------- 结构导入 ---------- */
-  .progress{height:8px; background:var(--panel-3); border-radius:999px; overflow:hidden; margin-top:12px; border:1px solid var(--line)}
-  .progress-bar{height:100%; width:0; background:var(--accent); transition:width .25s}
-  .setting-row input[type="file"]{font-size:12px; color:var(--dim); max-width:100%; font-family:var(--mono)}
-  .setting-row input[type="file"]::file-selector-button{
-    background:var(--panel-2); border:1px solid var(--line-2); color:var(--fg);
-    border-radius:6px; padding:4px 10px; margin-right:8px; cursor:pointer; font-size:12px;
-  }
-
-  /* ---------- 日志 ---------- */
-  .logs-panel{flex:1 1 auto; display:flex; flex-direction:column; min-height:0}
-  .logs-toolbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px}
-  .logs-toolbar select, .logs-toolbar input[type="search"]{
-    background:var(--panel-2); border:1px solid var(--line-2); border-radius:8px;
-    padding:6px 9px; font-size:12px; outline:none; font-family:var(--mono);
-  }
-  .logs-toolbar select{max-width:200px}
-  .logs-toolbar input[type="search"]{width:170px}
-  .logs-toolbar select:focus, .logs-toolbar input[type="search"]:focus{border-color:var(--accent)}
-  .log-info{font-family:var(--mono); font-size:11.5px; color:var(--faint); white-space:nowrap}
-  .toggle{
-    display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--dim);
-    border:1px solid var(--line-2); border-radius:8px; padding:6px 10px; cursor:pointer; user-select:none;
-  }
-  .toggle:hover{border-color:var(--faint)}
-  .toggle input{accent-color:var(--accent); margin:0}
-  .log-list{
-    flex:1; min-height:0; overflow:auto; background:var(--log-bg); border:1px solid var(--line);
-    border-radius:8px; padding:8px 0; font-family:var(--mono); font-size:12px; line-height:1.6;
-  }
-  .log-list::-webkit-scrollbar{width:9px}
-  .log-list::-webkit-scrollbar-thumb{background:var(--line-2); border-radius:8px}
-  .log{display:flex; gap:10px; padding:2px 12px; white-space:pre-wrap; word-break:break-word}
-  .log:hover{background:var(--hover)}
-  .log .t{color:var(--faint); flex:0 0 auto; font-size:11.5px}
-  .log .src{color:var(--accent); flex:0 0 auto; width:52px; font-size:11px; text-align:right}
-  .log.admin .src{color:var(--faint)}
-  .log .msg{color:var(--dim); flex:1; min-width:0}
-  .log.ok .msg{color:var(--fg)}
-  .log.error{background:var(--err-bg)}
-  .log.error .msg{color:#e05b4b; font-weight:600}
-  .empty{color:var(--faint); padding:14px; text-align:center; font-family:var(--mono); font-size:12px}
-
-  @media (max-width: 1080px){
-    main{grid-template-columns:1fr; overflow:auto}
-    .col{overflow:visible}
-    .logs-panel{height:62vh}
-    .hint{display:none}
-  }
-</style>
+<title>CyanQiuper 控制台</title>
+<link rel="icon" type="image/svg+xml" href="/assets/icon.svg" />
+<link rel="stylesheet" href="/astrbot.css" />
 </head>
 <body>
+<div class="layout">
 
-<header>
-  <div class="brand">
-    <img src="/assets/icon.svg" alt="CyanQiuper" />
-    <span class="name">CyanQiuper</span>
-    <span class="sub">后台管理</span>
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-brand">
+      <img src="/assets/icon.svg" alt="CyanQiuper" />
+      <div><div class="t">CyanQiuper</div><div class="s">Console</div></div>
+    </div>
+    <div class="sb-group">总览</div>
+      <a class="nav-item" data-page="dashboard"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>仪表盘</span></a>
+      <a class="nav-item" data-page="structure"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v10"/><path d="M8 7l4-4 4 4"/><path d="M4 14v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/></svg><span>结构导入</span></a>
+      <a class="nav-item" data-page="pixel"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/></svg><span>图片导入</span></a>
+      <a class="nav-item" data-page="pixeltext"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2"/><path d="M12 5v14"/><path d="M8 19h8"/></svg><span>像素字</span></a>
+      <a class="nav-item" data-page="netease"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"/><path d="M12 22v-6"/><path d="M4.9 4.9l4.2 4.2"/><path d="M14.9 14.9l4.2 4.2"/><path d="M2 12h6"/><path d="M16 12h6"/><path d="M4.9 19.1l4.2-4.2"/><path d="M14.9 9.1l4.2-4.2"/></svg><span>网易版</span></a>
+      <div class="sb-group">工作区</div>
+      <a class="nav-item" data-page="tasks"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span>任务队列</span></a>
+      <a class="nav-item" data-page="tools"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 21H3l8.7-8.7a4 4 0 0 0 5-5z"/></svg><span>快捷操作</span></a>
+      <a class="nav-item" data-page="console"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z"/><path d="M7 9l3 3-3 3"/><path d="M13 15h4"/></svg><span>控制台</span></a>
+      <a class="nav-item" data-page="logs"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 16h7"/></svg><span>日志</span></a>
+    <div class="sb-foot">
+      <span class="hint">CyanQiuper · Console</span>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="菜单">☰</button>
+      
+  <div class="badges">
+    <span class="pill" id="pill-ws"><span class="dot" id="dot-ws"></span><span id="pill-ws-text">正在检测服务…</span></span>
+    <span class="pill"><span class="dot" id="dot-game"></span><span id="pill-game-text">游戏未连接</span></span>
+    <span class="clock">北京时间（UTC+8） <b id="clock">--:--:--</b></span>
   </div>
-  <span class="pill" id="pill-ws"><span class="dot" id="dot-ws"></span><span id="pill-ws-text">正在检测服务…</span></span>
-  <span class="pill"><span class="dot" id="dot-game"></span><span id="pill-game-text">游戏未连接</span></span>
-  <span class="clock">北京时间（UTC+8） <b id="clock">--:--:--</b></span>
   <div class="spacer"></div>
-  <span class="hint">游戏内输入：<b id="connect-cmd">/connect ws://…</b></span>
-  <button class="btn small ghost" id="btn-copy">复制地址</button>
-  <button class="btn small ghost" id="btn-theme">切换到浅色</button>
-  <button class="btn small" id="btn-restart">重启服务</button>
-  <button class="btn small" id="btn-start">启动服务</button>
-  <button class="btn small" id="btn-stop">停止服务</button>
-  <button class="btn small ghost" id="btn-logout">退出登录</button>
-</header>
+  <div class="conn">
+    <span class="hint">游戏内输入：<b id="connect-cmd">/connect ws://…</b></span>
+    <button class="btn small ghost" id="btn-copy">复制地址</button>
+  </div>
+  <div class="actions">
+    <button class="btn small ghost" id="btn-theme" title="切换主题" aria-label="切换主题"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M4.6 12H2.4M21.6 12h-2.2M6.3 6.3 4.8 4.8M19.2 19.2l-1.5-1.5M17.7 6.3l1.5-1.5M4.8 19.2l1.5-1.5"/></svg></button>
+    <button class="btn small" id="btn-restart">重启服务</button>
+    <button class="btn small" id="btn-start">启动服务</button>
+    <button class="btn small" id="btn-stop">停止服务</button>
+    <button class="btn small ghost" id="btn-logout">退出登录</button>
+  </div>
 
-<main>
-  <!-- ============ 左列 ============ -->
-  <div class="col">
-    <section class="panel">
+    </div>
+    <div class="content">
+      <section class="page active" data-page="dashboard" id="page-dashboard">
+        <div class="page-head"><div><h1>仪表盘</h1><div class="desc">服务状态、运行统计与玩家信息</div></div></div>
+        <div class="page-grid"><div class="stack"><section class="panel">
       <h2>服务状态</h2>
       <dl class="kv">
         <dt>WebSocket 服务</dt><dd id="st-ws">—</dd>
@@ -262,8 +70,7 @@
         <dt>网页服务</dt><dd id="st-web">—</dd>
       </dl>
     </section>
-
-    <section class="panel">
+<section class="panel">
       <h2>游戏与玩家信息</h2>
       <div class="player">
         <div class="box"><div class="k">玩家</div><div class="v" id="pl-name">—</div></div>
@@ -290,9 +97,19 @@
         <button class="btn small" id="btn-player">刷新玩家信息</button>
         <span class="log-info" id="player-status">只读查询，不会传送玩家；在游戏里发一条消息后可读到版本/设备信息</span>
       </div>
-    </section>
-
-    <section class="panel">
+    </section></div><div class="stack"><section class="panel">
+      <h2>运行统计</h2>
+      <div class="stats">
+        <div class="stat"><div class="n" id="n-commands">0</div><div class="k">命令执行</div></div>
+        <div class="stat"><div class="n" id="n-blocks">0</div><div class="k">已放置方块</div></div>
+        <div class="stat"><div class="n" id="n-messages">0</div><div class="k">聊天消息</div></div>
+        <div class="stat"><div class="n" id="n-errors">0</div><div class="k">错误</div></div>
+      </div>
+    </section></div></div>
+      </section>
+      <section class="page " data-page="structure" id="page-structure">
+        <div class="page-head"><div><h1>结构导入</h1><div class="desc">上传解析 → 放置 → 回读校验 → 补建</div></div></div>
+                  <section class="panel">
       <h2>导入结构 / 投影文件</h2>
       <div class="setting-row">
         <input id="structure-file" type="file" accept=".mcstructure,.litematic,.schem,.schematic,.nbt" />
@@ -316,8 +133,150 @@
       <div class="progress"><div class="progress-bar" id="structure-bar"></div></div>
       <div class="log-info" id="structure-progress" style="margin-top:6px">—</div>
     </section>
+      </section>
+      <section class="page " data-page="pixel" id="page-pixel">
+        <div class="page-head"><div><h1>图片导入</h1><div class="desc">上传图片 → 自动比例与配色 → 生成方块画并导入游戏</div></div></div>
+                  <section class="panel" id="panel-pixelart">
+      <h2>图片导入 · 图片转方块画</h2>
+      <div class="px-drop" id="px-drop">
+        <input id="px-file" type="file" accept="image/*" />
+        <div class="log-info" id="px-file-name" style="margin-top:6px">点击上传图片，或把图片拖到这里（支持 PNG / JPG / WebP）</div>
+      </div>
+      <div class="sl-form" style="margin-top:10px">
+        <div>
+          <div class="log-info">目标宽度（方块）</div>
+          <select id="px-width">
+            <option value="32">32 格</option>
+            <option value="48">48 格</option>
+            <option value="64" selected>64 格</option>
+            <option value="96">96 格</option>
+            <option value="128">128 格</option>
+            <option value="192">192 格</option>
+          </select>
+        </div>
+        <div>
+          <div class="log-info">方块调色板</div>
+          <select id="px-palette"></select>
+        </div>
+        <input id="px-name-input" class="full" type="text" placeholder="作品名称（可空，默认 pixelart-时间）" />
+        <input id="px-offset" type="number" placeholder="Y 偏移（可空）" />
+        <div class="sl-row" style="margin:0">
+          <button class="btn small ghost" id="px-convert">重新生成</button>
+          <button class="btn accent small" id="px-prepare">生成方块画</button>
+          <button class="btn small" id="px-build-now">一键生成并导入</button>
+        </div>
+      </div>
+      <div id="px-preview-wrap" style="display:none;margin-top:12px">
+        <div class="sl-sub">方块还原预览</div>
+        <canvas id="px-preview" style="width:100%;max-width:320px;image-rendering:pixelated;border-radius:8px;border:1px solid var(--sl-line)"></canvas>
+        <div class="log-info" id="px-stat" style="margin-top:6px"></div>
+        <div class="log-info" id="px-name" style="margin-top:4px"></div>
+        <div class="sl-row">
+          <button class="btn small" id="px-build">导入到游戏</button>
+        </div>
+      </div>
+    </section>
+      </section>
+            <section class="page " data-page="pixeltext" id="page-pixeltext">
+        <div class="page-head"><div><h1>像素字</h1><div class="desc">输入文字与字号，直接生成方块像素字</div></div></div>
+        <div class="stack">
+          <section class="panel">
+            <h2>文字生成 · 方块像素字</h2>
+            <div class="sl-form">
+              <textarea id="px-t-text" class="full" rows="3" placeholder="输入要生成的文字（支持多行，Ctrl+Enter 生成预览）" style="resize:vertical;padding:8px 10px"></textarea>
+              <div>
+                <div class="log-info">字号（像素）</div>
+                <select id="px-t-size">
+                  <option value="8">8 px（小）</option>
+                  <option value="12">12 px</option>
+                  <option value="16" selected>16 px</option>
+                  <option value="24">24 px</option>
+                  <option value="32">32 px</option>
+                  <option value="48">48 px（大）</option>
+                  <option value="64">64 px（特大）</option>
+                </select>
+              </div>
+              <div>
+                <div class="log-info">字体</div>
+                <select id="px-t-font">
+                  <option value="yahei" selected>微软雅黑</option>
+                  <option value="simhei">黑体</option>
+                  <option value="simsun">宋体</option>
+                  <option value="mono">等宽</option>
+                  <option value="impact">Impact（英文）</option>
+                </select>
+              </div>
+              <div>
+                <div class="log-info">前景方块</div>
+                <select id="px-t-color">
+                  <option value="white_concrete" selected>白色混凝土</option>
+                  <option value="black_concrete">黑色混凝土</option>
+                  <option value="yellow_concrete">黄色混凝土</option>
+                  <option value="red_concrete">红色混凝土</option>
+                  <option value="light_blue_concrete">淡蓝色混凝土</option>
+                  <option value="lime_concrete">黄绿色混凝土</option>
+                </select>
+              </div>
+              <div>
+                <div class="log-info">每像素方块数</div>
+                <select id="px-t-scale">
+                  <option value="1" selected>1（最清晰）</option>
+                  <option value="2">2（放大一倍）</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+              <div>
+                <label class="log-info" style="display:flex;align-items:center;gap:6px;margin-top:18px">
+                  <input id="px-t-bold" type="checkbox" checked style="width:auto" /> 加粗
+                </label>
+              </div>
+              <div>
+                <div class="log-info">Y 偏移</div>
+                <input id="px-t-offset" type="number" value="0" />
+              </div>
+              <input id="px-t-name" class="full" type="text" placeholder="作品名称（可空，默认 text-时间）" />
+            </div>
+            <div class="sl-row">
+              <button class="btn accent small" id="px-t-build-preview">生成预览</button>
+              <button class="btn small" id="px-t-generate">生成像素字</button>
+              <button class="btn small ghost" id="px-t-build">导入到游戏</button>
+            </div>
+            <div id="px-t-wrap" style="display:none;margin-top:14px">
+              <div class="sl-sub">方块还原预览</div>
+              <canvas id="px-t-preview" style="width:100%;max-width:640px;image-rendering:pixelated;border:1px solid var(--line);border-radius:9px;background:#0a0a0d"></canvas>
+              <div class="log-info" id="px-t-stat" style="margin-top:8px"></div>
+              <div class="log-info" id="px-t-info" style="margin-top:4px"></div>
+            </div>
+            <div class="log-info" style="margin-top:10px">
+              提示：字太小会糊，建议 16 px 以上；「每像素方块数」调大可以把字放得更大。生成后可在「结构导入」里补建或检查。
+            </div>
+          </section>
+        </div>
+      </section>
 
-    <section class="panel">
+      <section class="page " data-page="netease" id="page-netease">
+        <div class="page-head"><div><h1>网易版</h1><div class="desc">机器人事件桥与多套进服配置</div></div></div>
+        <div class="page-grid"><div class="stack"><section class="panel" id="panel-profiles">
+      <h2>进服配置 · 多套房间</h2>
+      <div class="profile-list" id="profile-list"></div>
+      <div class="sl-sub">新建 / 编辑配置</div>
+      <div class="sl-form">
+        <input id="pf-name" type="text" placeholder="配置名称（如：我的租赁服）" />
+        <select id="pf-mode">
+          <option value="租赁服">租赁服</option>
+          <option value="联机大厅">联机大厅</option>
+          <option value="山头服">山头服</option>
+          <option value="本地联机">本地联机</option>
+        </select>
+        <input id="pf-room" type="text" placeholder="房间号 / 服务器号" />
+        <input id="pf-pass" type="password" placeholder="房间密码（可空）" />
+        <input id="pf-note" class="full" type="text" placeholder="备注（可空）" />
+      </div>
+      <div class="sl-row">
+        <button class="btn accent small" id="profile-save">保存配置</button>
+        <span class="log-info">「使用」会把连接参数复制到剪贴板并标记为当前配置</span>
+      </div>
+    </section></div><div class="stack"><section class="panel">
       <h2>网易版（机器人 · 事件桥）</h2>
       <div class="log-info" id="nte-status" style="margin-bottom:8px; white-space:normal">检测中…</div>
       <div class="player">
@@ -341,20 +300,39 @@
       <div class="progress" style="margin-top:10px"><div class="progress-bar" id="nte-bar"></div></div>
       <div class="log-info" id="nte-progress" style="margin-top:6px">—</div>
       <div class="log-info" id="nte-last" style="margin-top:8px">—</div>
-    </section>
-
-
-    <section class="panel">
-      <h2>运行统计</h2>
-      <div class="stats">
-        <div class="stat"><div class="n" id="n-commands">0</div><div class="k">命令执行</div></div>
-        <div class="stat"><div class="n" id="n-blocks">0</div><div class="k">已放置方块</div></div>
-        <div class="stat"><div class="n" id="n-messages">0</div><div class="k">聊天消息</div></div>
-        <div class="stat"><div class="n" id="n-errors">0</div><div class="k">错误</div></div>
+    </section></div></div>
+      </section>
+      <section class="page " data-page="tasks" id="page-tasks">
+        <div class="page-head"><div><h1>任务队列</h1><div class="desc">命令 / 等待 / 结构导入 顺序执行</div></div></div>
+                  <section class="panel" id="panel-queue">
+      <h2>任务队列 · 顺序执行</h2>
+      <div class="queue-list" id="queue-list"></div>
+      <div class="sl-sub">添加任务</div>
+      <div class="sl-form">
+        <select id="q-type">
+          <option value="send">游戏指令（/开头）</option>
+          <option value="command">代码（JS eval）</option>
+          <option value="sleep">等待（秒）</option>
+          <option value="build">导入当前已解析结构</option>
+        </select>
+        <input id="q-text" type="text" placeholder="指令 / 代码 / 秒数" />
+        <input id="q-offset" type="number" placeholder="结构导入 Y 偏移（仅导入用，可空）" />
+        <div class="sl-row" style="margin:0">
+          <button class="btn accent small" id="queue-add">加入队列</button>
+        </div>
       </div>
+      <div class="sl-row">
+        <button class="btn small" id="queue-start">开始执行</button>
+        <button class="btn small ghost" id="queue-stop">停止</button>
+        <button class="btn small ghost" id="queue-clear">清空</button>
+        <span class="log-info" id="queue-stat"></span>
+      </div>
+      <div class="log-info" style="margin-top:6px">执行时请保持本页打开；任务按顺序运行，失败会标记并继续下一条</div>
     </section>
-
-    <section class="panel">
+      </section>
+      <section class="page " data-page="tools" id="page-tools">
+        <div class="page-head"><div><h1>快捷操作</h1><div class="desc">球体、圆盘、圆柱、墙、L 系统与常用方块</div></div></div>
+        <div class="page-grid"><div class="stack"><section class="panel">
       <h2>快捷操作</h2>
       <div class="quick">
         <button class="btn small" data-code="pos()">定位坐标</button>
@@ -371,8 +349,7 @@
         <button class="btn small" data-code="plot(lsystem(&quot;X&quot;, {X:&quot;XFYFX+F+YFYFX-F-XFYFX&quot;, Y:&quot;YFXFY-F-XFYFX+F+YFYFX&quot;}, 2))">L 系统</button>
       </div>
     </section>
-
-    <section class="panel">
+<section class="panel">
       <h2>常用方块</h2>
       <div class="blocks" id="block-chips"></div>
       <div style="height:10px"></div>
@@ -380,14 +357,14 @@
         <input id="block-input" placeholder="minecraft:iron_block" spellcheck="false" />
         <button class="btn" id="btn-block">保存默认方块</button>
       </div>
-    </section>
-
-    <section class="panel">
+    </section></div><div class="stack"><section class="panel">
       <h2>最近命令</h2>
       <div class="recent" id="recent-list"><div class="empty">还没有执行过命令</div></div>
-    </section>
-
-    <section class="panel">
+    </section></div></div>
+      </section>
+      <section class="page " data-page="console" id="page-console">
+        <div class="page-head"><div><h1>控制台</h1><div class="desc">沙箱代码与游戏指令</div></div></div>
+                  <section class="panel">
       <h2>控制台</h2>
       <div class="console-out" id="console-out">
         <div class="entry"><span class="cmd">支持任意沙箱 JavaScript，例如 plot(sphere(3,0))；以 / 开头则当作原生命令发送</span></div>
@@ -397,11 +374,10 @@
         <button class="btn primary" id="btn-run">执行</button>
       </div>
     </section>
-  </div>
-
-  <!-- ============ 右列：日志 ============ -->
-  <div class="col">
-    <section class="panel logs-panel">
+      </section>
+      <section class="page " data-page="logs" id="page-logs">
+        <div class="page-head"><div><h1>日志</h1><div class="desc">实时日志、文件切换与搜索</div></div></div>
+                  <section class="panel logs-panel">
       <h2>实时日志（直接读取 logs 目录下的日志文件）</h2>
       <div class="logs-toolbar">
         <select id="log-file"><option value="all">全部日志</option></select>
@@ -418,9 +394,11 @@
         <div class="empty" id="log-empty">等待日志…</div>
       </div>
     </section>
+      </section>
+    </div>
   </div>
-</main>
-
+</div>
+<div id="sl-toast"></div>
 <script>
 (function () {
   "use strict";
@@ -486,12 +464,16 @@
   const THEME_KEY = "cyanqiuper-theme";
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
-    $("btn-theme").textContent = theme === "dark" ? "切换到浅色" : "切换到深色";
+    $("btn-theme").innerHTML = theme === "dark" ? '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M4.6 12H2.4M21.6 12h-2.2M6.3 6.3 4.8 4.8M19.2 19.2l-1.5-1.5M17.7 6.3l1.5-1.5M4.8 19.2l1.5-1.5"/></svg>' : '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.8A8.6 8.6 0 0 1 9.2 3.5a8.7 8.7 0 1 0 11.3 11.3z"/></svg>';
+    $("btn-theme").title = theme === "dark" ? "切换到浅色" : "切换到深色";
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch {}
   }
   function initTheme() {
+    // 支持 ?theme=dark|light 直接指定（便于截图/分享）
+    const q = new URLSearchParams(location.search).get("theme");
+    if (q === "dark" || q === "light") return applyTheme(q);
     let saved = null;
     try { saved = localStorage.getItem(THEME_KEY); } catch {}
     if (!saved) saved = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
@@ -660,9 +642,14 @@
     const ident = bot.identity || {};
     const pos = bot.position;
     const bridge = s.bridge || {};
+    const proto = s.protocol || {};
+    const protoText = proto.bot
+      ? `协议 ${proto.bot}（${proto.botGameVersion || "?"}）`
+      : `协议基线 ${proto.target ?? 898}（${proto.targetGameVersion || "1.21.130"}）`;
+    const protoWarn = proto.level === "error" ? " ⚠ 协议过低" : proto.level === "warn" && proto.bot ? " ⚠ 协议偏低" : "";
     $("nte-status").textContent = bridge.connected
-      ? `事件桥已连接 · 机器人 ${ident.name || "—"}（uid ${ident.user_id || "—"}）· 服务器 ${ident.server_ip || "—"}:${ident.server_port || "—"}`
-      : `事件桥未连接${bridge.error ? "：" + bridge.error : ""}`;
+      ? `事件桥已连接 · 机器人 ${ident.name || "—"}（uid ${ident.user_id || "—"}）· 服务器 ${ident.server_ip || "—"}:${ident.server_port || "—"} · ${protoText}${protoWarn}`
+      : `事件桥未连接${bridge.error ? "：" + bridge.error : ""} · ${protoText}${protoWarn}`;
     $("nte-name").textContent = ident.name || "—";
     $("nte-pos").textContent = pos ? `${Math.floor(pos.x)}, ${Math.floor(pos.y)}, ${Math.floor(pos.z)}` : "—";
     $("nte-players").textContent = bot.players && bot.players.players ? `${bot.players.count ?? bot.players.players.length} 人` : "—";
@@ -1312,5 +1299,35 @@
   }, 10000);
 })();
 </script>
+<script src="/snowluma.js"></script><script src="/pixelart.js"></script>
+<script src="/pixeltext.js"></script>
+
+<script>
+(function () {
+  const items = Array.from(document.querySelectorAll(".nav-item"));
+  const pages = Array.from(document.querySelectorAll(".page"));
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("overlay");
+  const menuBtn = document.getElementById("menu-btn");
+  function show(pid) {
+    items.forEach(a => a.classList.toggle("active", a.dataset.page === pid));
+    pages.forEach(p => p.classList.toggle("active", p.dataset.page === pid));
+    try { localStorage.setItem("cq-console-page", pid); } catch (e) {}
+    closeSidebar();
+    window.scrollTo(0, 0);
+  }
+  function closeSidebar() { if (sidebar) sidebar.classList.remove("open"); if (overlay) overlay.classList.remove("show"); }
+  items.forEach(a => a.addEventListener("click", () => show(a.dataset.page)));
+  if (menuBtn) menuBtn.addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+    overlay.classList.toggle("show", sidebar.classList.contains("open"));
+  });
+  if (overlay) overlay.addEventListener("click", closeSidebar);
+  let saved = "dashboard";
+  try { saved = localStorage.getItem("cq-console-page") || "dashboard"; } catch (e) {}
+  if (document.querySelector('.nav-item[data-page="' + saved + '"]')) show(saved); else show("dashboard");
+})();
+</script>
+
 </body>
 </html>
